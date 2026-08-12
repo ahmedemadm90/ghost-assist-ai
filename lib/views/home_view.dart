@@ -25,8 +25,6 @@ class _HomeViewState extends State<HomeView> {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<AppProvider>();
-    
-    // Ghost Mode applies a semi-transparent, compact, dark theme
     final isGhost = provider.isGhostMode;
 
     return Scaffold(
@@ -36,13 +34,26 @@ class _HomeViewState extends State<HomeView> {
         elevation: 0,
         title: Row(
           children: [
-            Icon(Icons.visibility_off_rounded, color: isGhost ? Colors.redAccent : const Color(0xFF38BDF8)),
+            Icon(Icons.mic_rounded, color: provider.isListening ? Colors.redAccent : const Color(0xFF38BDF8)),
             const SizedBox(width: 8),
-            Text(isGhost ? 'GhostAssist (Stealth Mode)' : 'GhostAssist AI - Interview & Meeting Assistant', 
+            Text(isGhost ? 'GhostAssist (Stealth Mode)' : 'GhostAssist AI - Live Voice Assistant', 
               style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+            if (provider.isListening) ...[
+              const SizedBox(width: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(color: Colors.red.withOpacity(0.2), borderRadius: BorderRadius.circular(10), border: Border.all(color: Colors.redAccent)),
+                child: const Text('LISTENING...', style: TextStyle(color: Colors.redAccent, fontSize: 10, fontWeight: FontWeight.bold)),
+              ),
+            ],
           ],
         ),
         actions: [
+          IconButton(
+            icon: Icon(provider.isListening ? Icons.mic_rounded : Icons.mic_off_rounded, color: provider.isListening ? Colors.redAccent : Colors.white70),
+            tooltip: 'Toggle Live Audio Listening',
+            onPressed: () => provider.toggleListening(),
+          ),
           IconButton(
             icon: Icon(isGhost ? Icons.fullscreen_rounded : Icons.filter_none_rounded, color: Colors.white70),
             tooltip: 'Toggle Ghost / Stealth Window',
@@ -56,7 +67,6 @@ class _HomeViewState extends State<HomeView> {
       ),
       body: Row(
         children: [
-          // Left panel: Live Prompts & AI Response (Main working area)
           Expanded(
             flex: 3,
             child: Padding(
@@ -64,7 +74,6 @@ class _HomeViewState extends State<HomeView> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Context Bar
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     decoration: BoxDecoration(color: const Color(0xFF1E293B), borderRadius: BorderRadius.circular(16)),
@@ -72,7 +81,7 @@ class _HomeViewState extends State<HomeView> {
                       children: [
                         const Icon(Icons.psychology_rounded, color: Color(0xFF38BDF8), size: 20),
                         const SizedBox(width: 12),
-                        Text('Current Context: ${provider.meetingContext}', style: const TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.bold)),
+                        Text('Context: ${provider.meetingContext}', style: const TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.bold)),
                         const Spacer(),
                         TextButton(
                           onPressed: () => _showSettingsDialog(context),
@@ -81,8 +90,23 @@ class _HomeViewState extends State<HomeView> {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 20),
-                  // AI Response Box (The "Ghost" Teleprompter)
+                  if (provider.currentQuestion.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(color: Colors.white.withOpacity(0.05), borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.white10)),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.record_voice_over_rounded, color: Color(0xFF38BDF8), size: 18),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text('Heard: "${provider.currentQuestion}"', style: const TextStyle(color: Colors.white70, fontSize: 13, fontStyle: FontStyle.italic)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 16),
                   Expanded(
                     child: Container(
                       width: double.infinity,
@@ -96,22 +120,14 @@ class _HomeViewState extends State<HomeView> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Row(
+                            const Row(
                               children: [
-                                const Text('💡 Instant AI Answer / Talking Points', style: TextStyle(color: Color(0xFF38BDF8), fontWeight: FontWeight.bold, fontSize: 14)),
-                                const Spacer(),
-                                if (provider.aiResponse.isNotEmpty)
-                                  IconButton(
-                                    icon: const Icon(Icons.copy_rounded, color: Colors.white54, size: 18),
-                                    onPressed: () {
-                                      // Copy to clipboard logic
-                                    },
-                                  ),
+                                Text('💡 Instant AI Answer / Talking Points', style: TextStyle(color: Color(0xFF38BDF8), fontWeight: FontWeight.bold, fontSize: 14)),
                               ],
                             ),
                             const Divider(color: Colors.white12, height: 24),
                             SelectableText(
-                              provider.aiResponse.isEmpty ? 'Type an interview question below or use voice listening to get instant AI answers...' : provider.aiResponse,
+                              provider.aiResponse.isEmpty ? 'Enable live listening (mic icon) or type a question below. The AI will instantly listen and provide expert answers...' : provider.aiResponse,
                               style: TextStyle(color: Colors.white, fontSize: isGhost ? 18 : 16, height: 1.6),
                             ),
                           ],
@@ -120,7 +136,6 @@ class _HomeViewState extends State<HomeView> {
                     ),
                   ),
                   const SizedBox(height: 20),
-                  // Input Bar for simulated hearing / typing question
                   Row(
                     children: [
                       Expanded(
@@ -128,7 +143,7 @@ class _HomeViewState extends State<HomeView> {
                           controller: _questionController,
                           style: const TextStyle(color: Colors.white),
                           decoration: InputDecoration(
-                            hintText: 'Type question heard in meeting or interview...',
+                            hintText: 'Type or let AI listen to speaker automatically...',
                             hintStyle: const TextStyle(color: Colors.white38),
                             filled: true,
                             fillColor: const Color(0xFF1E293B),
@@ -166,7 +181,6 @@ class _HomeViewState extends State<HomeView> {
               ),
             ),
           ),
-          // Right panel: Meeting Notes & History (Hidden in extreme Ghost mode)
           if (!isGhost) ...[
             Container(width: 1, color: Colors.white12),
             Expanded(
@@ -189,7 +203,7 @@ class _HomeViewState extends State<HomeView> {
                     const SizedBox(height: 12),
                     Expanded(
                       child: provider.notes.isEmpty
-                          ? const Center(child: Text('Questions & Answers will be saved here automatically.', textAlign: TextAlign.center, style: TextStyle(color: Colors.white38, fontSize: 13)))
+                          ? const Center(child: Text('Heard questions and AI answers will be saved here automatically.', textAlign: TextAlign.center, style: TextStyle(color: Colors.white38, fontSize: 13)))
                           : ListView.builder(
                               itemCount: provider.notes.length,
                               itemBuilder: (context, index) {
